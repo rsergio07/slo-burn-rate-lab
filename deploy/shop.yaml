@@ -1,0 +1,136 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: shop
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pricing
+  namespace: shop
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: pricing }
+  template:
+    metadata:
+      labels: { app: pricing, tier: shop }
+    spec:
+      containers:
+        - name: shop
+          image: shop:lab
+          imagePullPolicy: Never
+          env:
+            - { name: ROLE, value: "pricing" }
+          ports:
+            - { name: http, containerPort: 8080 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 2
+          resources:
+            requests: { cpu: 50m, memory: 16Mi }
+            limits: { memory: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pricing
+  namespace: shop
+  labels: { tier: shop }
+spec:
+  selector: { app: pricing }
+  ports:
+    - { name: http, port: 8080, targetPort: http }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: storefront
+  namespace: shop
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: storefront }
+  template:
+    metadata:
+      labels: { app: storefront, tier: shop }
+    spec:
+      containers:
+        - name: shop
+          image: shop:lab
+          imagePullPolicy: Never
+          env:
+            - { name: ROLE, value: "storefront" }
+            - { name: MAX_INFLIGHT, value: "6" }
+            - { name: PRICING_TIMEOUT, value: "500ms" }
+          ports:
+            - { name: http, containerPort: 8080 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 2
+          resources:
+            requests: { cpu: 50m, memory: 16Mi }
+            limits: { memory: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: storefront
+  namespace: shop
+  labels: { tier: shop }
+spec:
+  selector: { app: storefront }
+  ports:
+    - { name: http, port: 8080, targetPort: http }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: customers
+  namespace: shop
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: customers }
+  template:
+    metadata:
+      labels: { app: customers, tier: shop }
+    spec:
+      containers:
+        - name: shop
+          image: shop:lab
+          imagePullPolicy: Never
+          env:
+            - { name: ROLE, value: "load" }
+            - { name: RPS, value: "20" }
+            - { name: PATIENCE, value: "1s" }
+          ports:
+            - { name: http, containerPort: 8080 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 2
+          resources:
+            requests: { cpu: 50m, memory: 32Mi }
+            limits: { memory: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: customers
+  namespace: shop
+  labels: { tier: shop }
+spec:
+  selector: { app: customers }
+  ports:
+    - { name: http, port: 8080, targetPort: http }
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: shop
+  namespace: shop
+spec:
+  selector:
+    matchLabels: { tier: shop }
+  endpoints:
+    - { port: http, path: /metrics, interval: 5s }

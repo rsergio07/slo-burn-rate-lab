@@ -1,0 +1,24 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: checkout-slo
+  namespace: monitoring
+spec:
+  groups:
+    - name: checkout-slo
+      interval: 5s
+      rules:
+        - record: slo:error_ratio:rate30s
+          expr: sum(rate(customer_checkouts_total{result!="ok"}[30s])) / sum(rate(customer_checkouts_total[30s]))
+        - record: slo:error_ratio:rate2m
+          expr: sum(rate(customer_checkouts_total{result!="ok"}[2m])) / sum(rate(customer_checkouts_total[2m]))
+        # SLO 99.9% means an error budget of 0.1%. Burn rate 14.4 is 1.44% errors.
+        - alert: CheckoutFastBurn
+          expr: slo:error_ratio:rate2m > (14.4 * 0.001) and slo:error_ratio:rate30s > (14.4 * 0.001)
+          labels: { severity: page, slo: checkout }
+          annotations: { summary: Burning the error budget at 14.4 times the allowed rate }
+        # Burn rate 6 is 0.6% errors.
+        - alert: CheckoutSlowBurn
+          expr: slo:error_ratio:rate2m > (6 * 0.001) and slo:error_ratio:rate30s > (6 * 0.001)
+          labels: { severity: ticket, slo: checkout }
+          annotations: { summary: Burning the error budget at 6 times the allowed rate }

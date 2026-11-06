@@ -1,0 +1,33 @@
+# Only what the demo needs, so the lab fits on a laptop.
+alertmanager: { enabled: true }
+nodeExporter: { enabled: false }
+kubeStateMetrics: { enabled: false }
+defaultRules: { create: false }
+kubeApiServer: { enabled: false }
+kubelet: { enabled: false }
+kubeControllerManager: { enabled: false }
+coreDns: { enabled: false }
+kubeDns: { enabled: false }
+kubeEtcd: { enabled: false }
+kubeScheduler: { enabled: false }
+kubeProxy: { enabled: false }
+
+prometheus:
+  service: { type: NodePort, nodePort: 30090 }
+  prometheusSpec:
+    scrapeInterval: 5s
+    evaluationInterval: 5s
+    retention: 6h
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    resources:
+      requests: { cpu: 100m, memory: 256Mi }
+
+grafana:
+  adminPassword: lab
+  defaultDashboardsEnabled: false
+  service: { type: NodePort, nodePort: 30300 }
+  grafana.ini:
+    auth: { disable_login_form: true }
+    auth.anonymous: { enabled: true, org_role: Viewer }
